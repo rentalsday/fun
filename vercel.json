@@ -1,0 +1,7 @@
+// vercel.json
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/proxy.js" },
+    { "source": "/(.*)", "destination": "/index.html" }  // Serve HTML for all paths
+  ]
+}
