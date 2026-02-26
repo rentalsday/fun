@@ -87,30 +87,51 @@
     <button onclick="generateIdeas()">Go!</button>
   </div>
 
-  <div id="result">Enter an amount above and hit Go! ✨<br><small>Berkeley / Bay Area vibes ready...</small></div>
+  <div id="result">Detecting your location for personalized vibes... <br>Enter an amount and hit Go! ✨</div>
 
   <script>
     const resultDiv = document.getElementById('result');
     const input = document.getElementById('budget');
 
-    let userLocation = "Berkeley, California, US"; // Default (your area)
+    let userLocation = ''; // Start empty → will be set by geolocation
 
-    // Try browser geolocation for more precision (non-blocking)
+    // Try to get real user location on page load (non-blocking)
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (pos) => {
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10&addressdetails=1`);
           const data = await res.json();
-          const city = data.address?.city || data.address?.town || data.address?.village || '';
-          const state = data.address?.state || '';
+          const city = data.address?.city || data.address?.town || data.address?.village || data.address?.hamlet || '';
+          const state = data.address?.state || data.address?.province || data.address?.region || '';
           const country = data.address?.country_code?.toUpperCase() || '';
+          
           if (city && state) {
             userLocation = `${city}, ${state} ${country}`.trim();
+            console.log('Accurate location detected:', userLocation);
+            // Optional: update UI to show location was found
+            resultDiv.innerHTML = resultDiv.innerHTML.replace(
+              'Detecting your location...',
+              `Using your location: ${userLocation} ✨<br>`
+            );
+          } else if (data.display_name) {
+            userLocation = data.display_name.split(', ').slice(-3).join(', ');
           }
         } catch (err) {
-          console.log('Geo fetch failed → using Berkeley default');
+          console.log('Geolocation reverse lookup failed:', err);
         }
-      }, () => {}, { timeout: 5000 });
+      }, (err) => {
+        console.log('User denied geolocation or error:', err.message);
+        resultDiv.innerHTML = resultDiv.innerHTML.replace(
+          'Detecting your location...',
+          'Location access denied or unavailable — using general suggestions 🌍<br>'
+        );
+      }, { timeout: 8000, enableHighAccuracy: false });
+    } else {
+      console.log('Browser does not support geolocation');
+      resultDiv.innerHTML = resultDiv.innerHTML.replace(
+        'Detecting your location...',
+        'Geolocation not supported by this browser — using general suggestions 🌍<br>'
+      );
     }
 
     input.addEventListener('keypress', e => {
@@ -133,18 +154,19 @@
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "grok-4",  // ← You can change to "grok-4", "grok-4-1-fast-reasoning" etc. if available on your plan
+            model: "grok-4",  // Change if your key supports a different model
             messages: [
               {
                 role: "system",
-                content: `You are a super fun, creative, slightly chaotic friend in ${userLocation || 'the Bay Area'}. 
-                Turn any budget into exciting, realistic things to do today or this weekend — food, activities, experiences, cheap thrills, hikes, food trucks, campus stuff, etc.
+                content: `You are a super fun, creative, slightly chaotic friend wherever the user is located.
+                Turn any budget into exciting, realistic things to do today or this weekend — food, activities, experiences, cheap thrills, local attractions, etc.
                 Use lots of emojis. Give 4–6 specific ideas. Sort roughly from cheapest to most expensive (all ≤ budget).
-                Include one mildly unhinged / legendary suggestion. Tailor heavily to Berkeley / Bay Area / California vibes.`
+                Include one mildly unhinged / legendary suggestion.
+                Tailor suggestions to the user's actual location if provided, otherwise use general ideas suitable for most places.`
               },
               {
                 role: "user",
-                content: `Budget: $${dollars} or less. Location: ${userLocation}. Suggest fun, doable things right now or this weekend.`
+                content: `Budget: $${dollars} or less. Location: ${userLocation || 'unknown / anywhere in the world'}. Suggest fun, doable things right now or this weekend.`
               }
             ],
             temperature: 0.92,
