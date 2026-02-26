@@ -6,7 +6,7 @@
   <title>Budget Vibes • $ → Fun</title>
   <style>
     body {
-      font-family: system-ui, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
       color: #f0f0ff;
       min-height: 100vh;
@@ -15,23 +15,27 @@
       flex-direction: column;
       align-items: center;
       padding: 2rem;
+      box-sizing: border-box;
     }
     h1 {
-      font-size: 3.2rem;
-      margin: 0.4rem 0 1.2rem;
+      font-size: clamp(2.5rem, 8vw, 3.5rem);
+      margin: 0.5rem 0 0.8rem;
       background: linear-gradient(90deg, #a78bfa, #7dd3fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
     .input-area {
       display: flex;
-      gap: 12px;
+      gap: 1rem;
       margin: 1.5rem 0 2rem;
+      width: 100%;
+      max-width: 500px;
+      justify-content: center;
     }
     input {
-      font-size: 2.1rem;
-      width: 180px;
-      padding: 0.6rem 1rem;
+      font-size: clamp(1.8rem, 6vw, 2.2rem);
+      width: 160px;
+      padding: 0.7rem 1rem;
       border: 2px solid #6b7280;
       border-radius: 12px;
       background: #1e1b38;
@@ -39,8 +43,8 @@
       text-align: center;
     }
     button {
-      font-size: 1.4rem;
-      padding: 0.8rem 1.8rem;
+      font-size: clamp(1.3rem, 5vw, 1.6rem);
+      padding: 0.8rem 2rem;
       border: none;
       border-radius: 12px;
       background: #7c3aed;
@@ -51,131 +55,122 @@
     button:hover { background: #9f7aea; transform: translateY(-2px); }
     
     #result {
-      max-width: 620px;
-      background: rgba(30, 27, 56, 0.7);
+      max-width: 700px;
+      background: rgba(30, 27, 56, 0.75);
       backdrop-filter: blur(8px);
-      padding: 1.8rem 2.2rem;
+      padding: 1.8rem 2rem;
       border-radius: 16px;
       line-height: 1.6;
-      font-size: 1.25rem;
+      font-size: clamp(1.1rem, 4vw, 1.3rem);
       border: 1px solid #4b5563;
-      min-height: 140px;
+      min-height: 160px;
       white-space: pre-wrap;
+      text-align: left;
     }
     
     .emoji { font-size: 1.8rem; margin-right: 0.4rem; }
 
-    /* Mobile optimizations */
     @media (max-width: 600px) {
-      body { padding: 1rem; }
-      h1 { font-size: 2.5rem; }
-      input { font-size: 1.8rem; width: 140px; }
-      button { font-size: 1.2rem; padding: 0.6rem 1.4rem; }
-      #result { font-size: 1.1rem; padding: 1.4rem 1.8rem; max-width: 100%; }
-      .input-area { flex-direction: column; align-items: center; gap: 8px; }
+      body { padding: 1.5rem 1rem; }
+      .input-area { flex-direction: column; align-items: center; gap: 1rem; }
+      input, button { width: 80%; max-width: 300px; }
     }
   </style>
 </head>
 <body>
 
   <h1>Budget Vibes</h1>
-  <p style="opacity:0.8; margin-top:-0.8rem;">Turn any dollar amount into instant fun ideas</p>
+  <p style="opacity:0.8; margin-top:-0.8rem; text-align:center;">Turn any dollar amount into instant fun ideas</p>
 
   <div class="input-area">
-    <input type="number" id="budget" placeholder="23" min="1" step="1" autofocus>
+    <input type="number" id="budget" placeholder="50" min="1" step="1" autofocus>
     <button onclick="generateIdeas()">Go!</button>
   </div>
 
-  <div id="result">Enter an amount and see the magic ✨</div>
+  <div id="result">Enter an amount above and hit Go! ✨<br><small>Local Berkeley/Bay Area vibes coming right up...</small></div>
 
   <script>
     const resultDiv = document.getElementById('result');
     const input = document.getElementById('budget');
 
-    let userLocation = ''; // Global to store location
+    let userLocation = "Berkeley, California, US"; // Default fallback
+
+    // Try to get more precise location via browser (non-blocking)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10&addressdetails=1`);
+          const data = await res.json();
+          const city = data.address?.city || data.address?.town || data.address?.village || '';
+          const state = data.address?.state || '';
+          const country = data.address?.country_code?.toUpperCase() || '';
+          if (city && state) {
+            userLocation = `${city}, ${state} ${country}`.trim();
+          }
+        } catch (err) {
+          console.log('Location fetch failed, using default');
+        }
+      }, () => {}, { timeout: 5000 });
+    }
 
     input.addEventListener('keypress', e => {
       if (e.key === 'Enter') generateIdeas();
     });
 
-    // Function to get user's location with reverse geocoding
-    async function getUserLocation() {
-      return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-          resolve('');
-          return;
-        }
-
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10&addressdetails=1`);
-            const data = await res.json();
-            const city = data.address.city || data.address.town || data.address.village || '';
-            const state = data.address.state || data.address.province || '';
-            const country = data.address.country_code?.toUpperCase() || '';
-            resolve(city ? `${city}, ${state} ${country}`.trim() : '');
-          } catch (err) {
-            resolve(''); // Fallback if fetch fails
-          }
-        }, (err) => {
-          resolve(''); // User denied or error
-        }, { timeout: 5000 });
-      });
-    }
-
-    // Get location on page load (async, non-blocking)
-    getUserLocation().then(loc => {
-      userLocation = loc;
-      console.log('Location detected:', userLocation); // For debugging
-    });
-
     async function generateIdeas() {
-      let dollars = parseInt(input.value) || 0;
+      const dollars = parseInt(input.value) || 0;
       if (dollars < 1) {
-        resultDiv.innerHTML = "💸 At least give me <strong>$1</strong> to work with...";
+        resultDiv.innerHTML = "💸 Give me at least <strong>$1</strong> to work with...";
         return;
       }
 
-      // If location not yet set, try to get it now
-      if (!userLocation) {
-        userLocation = await getUserLocation();
-      }
-
-      resultDiv.innerHTML = "Thinking fun thoughts... ⏳";
+      resultDiv.innerHTML = "Brewing some 🔥 local vibes... one sec ⏳";
 
       try {
-        const res = await fetch("https://api.x.ai/v1/chat/completions", {   // or openai / gemini / groq / etc
+        const response = await fetch("/api/proxy", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer YOUR_XAI_API_KEY_HERE"
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "grok-beta",           // or latest model name
+            model: "grok-beta",  // Change to a newer model if available (check xAI docs)
             messages: [
               {
                 role: "system",
-                content: `You are a very fun, creative, slightly chaotic friend who turns any budget into exciting activities. 
-                Use emojis. Be specific. Include 4–6 ideas. Sort from cheapest to most expensive within the budget.
-                Sometimes throw in one mildly unhinged idea. If location is provided, tailor suggestions to that area or similar locales.`
+                content: `You are a super fun, creative, slightly chaotic friend in ${userLocation}. 
+                Turn any budget into exciting, realistic things to do today or this weekend — food, activities, experiences, cheap thrills, etc.
+                Use lots of emojis. Give 4–6 specific ideas. Sort roughly from cheapest → most expensive (but all ≤ budget).
+                Include one mildly unhinged / legendary suggestion. Tailor heavily to Berkeley / Bay Area / California vibes (outdoor stuff, food trucks, hikes, techy events, campus life, etc.).`
               },
               {
                 role: "user",
-                content: `Budget: $${dollars}. Give me fun things I can do today or this weekend with exactly that amount or less. Location: ${userLocation || 'anywhere in the world'}.`
+                content: `Budget: $${dollars} or less. Location: ${userLocation}. Suggest fun, doable things right now or this weekend.`
               }
             ],
-            temperature: 0.9,
-            max_tokens: 280
+            temperature: 0.92,
+            max_tokens: 320
           })
         });
 
-        const data = await res.json();
-        const reply = data.choices?.[0]?.message?.content || "Hmm... the vibes are not vibing today 😅";
+        if (!response.ok) {
+          throw new Error(`Proxy / API error: ${response.status}`);
+        }
 
-        resultDiv.innerHTML = reply.replace(/\n/g, "<br>");
+        const data = await response.json();
+        let reply = data.choices?.[0]?.message?.content?.trim() || "Hmm... the vibes are quiet today 😅";
+
+        // Basic markdown → HTML conversion for better display
+        reply = reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        resultDiv.innerHTML = reply;
 
       } catch (err) {
-        resultDiv.innerHTML = "AI is taking a coffee break ☕<br>Try again or check your connection!";
+        console.error(err);
+        resultDiv.innerHTML = `Oops — something went wrong 😭<br><br>
+          <small>Error: ${err.message}<br>
+          • Check Vercel logs for proxy issues<br>
+          • Confirm XAI_API_KEY is set in Vercel env vars<br>
+          • Make sure /api/proxy.js exists in your repo</small>`;
       }
     }
   </script>
